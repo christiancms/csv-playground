@@ -3,12 +3,11 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from io import StringIO, BytesIO
-from google import genai
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
-from google import genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 import time
 from constantes import CSV_PATH_NOT_EXIST, PAGE_TITLE 
@@ -32,8 +31,9 @@ class App_Genai:
     if not API_KEY:
         st.error(APIKEY_NOT_EXIST)
         st.stop()
-    client = genai.Client(api_key=API_KEY)
-
+    client = genai.configure(api_key=API_KEY)
+    # Crie o modelo
+    model = genai.GenerativeModel("gemini-2.5-flash")
     # ==========================
     # CSV PADRÃO DO PROJETO
     # ==========================
@@ -116,8 +116,7 @@ class App_Genai:
         # Enviar prompt para o Gemini
         with st.spinner("🔍 Analisando com IA..."):
             try:
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
+                response = model.generate_content(
                     contents=f"Você é um analista de dados. Aqui está o CSV:\n\n{csv_data}\n\nPergunta: {pergunta}\nResponda em português de forma clara."
                 )
                 resposta = response.text.strip()
