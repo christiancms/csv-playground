@@ -15,5 +15,5 @@ body, .stApp { background-color: #111; color: white; }
 CSV_PATH = "data/creditcard.csv"
 CSV_PATH_NOT_EXIST = "⚠️ CSV padrão não encontrado. Crie o arquivo em data/padrao.csv."
 APIKEY_NOT_EXIST = "⚠️ Defina sua chave GOOGLE_API_KEY no ambiente antes de rodar."
-ST_TITLE = "📊 Dashboard AI com CSV + Gemini"
-PAGE_TITLE = "📊 Dashboard com CSV e Gemini"
+ST_TITLE = "📊 Dashboard AI com CSV-Playground"
+PAGE_TITLE = "📊 Dashboard com CSV-Playground"
