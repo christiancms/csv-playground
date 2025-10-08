@@ -4,3 +4,4 @@ plotly
 google-generativeai
 reportlab
 python-dotenv
+scikit-learn
