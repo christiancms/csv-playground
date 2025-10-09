@@ -1,4 +1,5 @@
 import os
+import requests
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -16,7 +17,7 @@ import time
 import json
 from langdetect import detect
 from constantes import CSV_PATH_NOT_EXIST, PAGE_TITLE
-from constantes import CSV_PATH, APIKEY_NOT_EXIST, ST_TITLE
+from constantes import CSV_PATH, APIKEY_NOT_EXIST, ST_TITLE, APITOKEN_NOT_EXIST
 
 
 class App:
@@ -30,14 +31,29 @@ class App:
         self.api_key = os.getenv("GOOGLE_API_KEY")
         # Inicializa cliente Gemini (SDK oficial Google GenAI)
         if not self.api_key:
-                st.error(APIKEY_NOT_EXIST)
-                st.stop()
+            st.error(APIKEY_NOT_EXIST)
+            st.stop()
         genai.configure(api_key=self.api_key)
         # Crie o modelo
         self.model = genai.GenerativeModel("gemini-2.5-flash")
         self.df = self.carregar_csv()
         self.historico = st.session_state.get("historico", {})
+
+        self.api_token = os.getenv("HF_API_TOEKN")
+        if not self.api_token:
+            st.error(APITOKEN_NOT_EXIST)
+            st.stop()
+        self.headers = {"Authorization": f"Bearer {self.api_token}"}
     
+
+    def hf_infer(self, prompt, model="mistralai/Mistral-7B-Instruct-v0.2"):
+        response = requests.post(
+            f"https://api-inference.huggingface.co/models/{model}",
+            headers=self.headers,
+            json={"inputs": prompt}
+        )
+        return response.json()[0]["generated_text"]
+
     # ==========================
     # CSV PADRÃO DO PROJETO
     # ==========================
@@ -101,8 +117,8 @@ class App:
                 self.df.to_csv(csv_buffer, index=False)
                 prompt = self.gerar_prompt(pergunta, csv_buffer.getvalue(), self.detectar_idioma(pergunta))
                 try:
-                    response = self.model.generate_content(prompt)
-                    resposta_texto = response.text.strip()
+                    response = self.responder_com_llm(prompt)
+                    resposta_texto = response
                     st.success(f"🤖 Resposta da IA: {resposta_texto}")
                     self.historico[pergunta.lower()] = pd.DataFrame([[resposta_texto]], columns=["Resposta"])
                 except Exception as e:
@@ -132,6 +148,15 @@ class App:
                 ultima.to_csv(buffer, index=False)
                 st.download_button("📥 Download CSV", data=buffer.getvalue(), file_name="resposta.csv", mime="text/csv")
 
+
+    # FALLBACK
+    def responder_com_llm(self, prompt):
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text.strip()
+        except:
+            return self.hf_infer(prompt)  # usa Hugging Face se Gemini falhar
+        
     # ==============================================
     # GERAR RELATÓRIO EM PDF
     # ==============================================

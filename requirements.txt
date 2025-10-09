@@ -6,3 +6,4 @@ reportlab
 python-dotenv
 scikit-learn
 langdetect
+requests
