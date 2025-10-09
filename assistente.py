@@ -77,10 +77,24 @@ class Assistente:
     @staticmethod
     def formatar_resposta(resposta_dict, titulo="Resumo"):
         if isinstance(resposta_dict, dict):
-            df_formatado = pd.DataFrame(resposta_dict).T.reset_index()
-            df_formatado.columns = ["Variável", *df_formatado.columns[1:]]
-            return df_formatado
+            try:
+                # Tenta criar DataFrame diretamente
+                df = pd.DataFrame(resposta_dict)
+
+                # Se for uma série de valores por variável, transpor
+                if df.shape[0] == 1 or all(isinstance(v, (int, float, str)) for v in resposta_dict.values()):
+                    df = df.T.reset_index()
+                    df.columns = ["Variável", "Valor"]
+                else:
+                    df = df.reset_index().rename(columns={"index": "Variável"})
+                return df
+
+            except Exception as e:
+                # Fallback: transforma em lista de pares
+                lista = [[k, str(v)] for k, v in resposta_dict.items()]
+                return pd.DataFrame(lista, columns=["Variável", "Valor"])
         else:
+            # Se não for dict, retorna como texto simples
             return pd.DataFrame([[str(resposta_dict)]], columns=[titulo])
 
     @staticmethod

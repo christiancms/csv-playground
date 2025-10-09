@@ -13,6 +13,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from assistente import Assistente
 from roteador import roteador_de_pergunta
+from utils import detectar_encoding, detectar_separador
 import time
 import json
 from langdetect import detect
@@ -54,6 +55,11 @@ class App:
         )
         return response.json()[0]["generated_text"]
 
+
+    @st.cache_data
+    def ler_csv(uploaded_file, encoding, sep):
+        return pd.read_csv(uploaded_file, encoding=encoding, sep=sep)
+
     # ==========================
     # CSV PADRÃO DO PROJETO
     # ==========================
@@ -61,14 +67,30 @@ class App:
     def carregar_csv(self):
         uploaded_file = st.file_uploader("📁 Carregue um CSV (opcional)", type=["csv"])
         if uploaded_file:
-            df = pd.read_csv(uploaded_file)
-            self.exibir_mensagem("📁 Usando CSV enviado pelo usuário.", "info")
+            try:
+                encoding_detectado = detectar_encoding(uploaded_file)
+                separador = detectar_separador(uploaded_file, encoding_detectado)
+                st.info(f"📄 Encoding detectado: `{encoding_detectado}` — Separador: `{separador}`")
+                
+                # ⚠️ importante: voltar o ponteiro do arquivo para o início antes de ler
+                uploaded_file.seek(0)
+                df = pd.read_csv(uploaded_file, encoding=encoding_detectado, sep=separador)
+                
+                self.exibir_mensagem("📁 Usando CSV enviado pelo usuário.", "info")
+            except Exception as e:
+                st.warning(f"⚠️ Erro ao ler o CSV com encoding detectado. Tentando fallback UTF-8...")
+                uploaded_file.seek(0)
+                df = pd.read_csv(uploaded_file, encoding="utf-8", errors="replace")
         else:
             if not os.path.exists(CSV_PATH):
                 st.warning(CSV_PATH_NOT_EXIST)
                 st.stop()
             df = pd.read_csv(CSV_PATH)
             self.exibir_mensagem("📁 Usando CSV padrão do projeto.", "success")
+        
+        # 🔧 Atualiza o DataFrame da instância
+        self.df = df
+
         return df
 
     def exibir_mensagem(self, texto, tipo="info", duracao=3):
@@ -122,7 +144,8 @@ class App:
                     st.success(f"🤖 Resposta da IA: {resposta_texto}")
                     self.historico[pergunta.lower()] = pd.DataFrame([[resposta_texto]], columns=["Resposta"])
                 except Exception as e:
-                    st.error(f"Erro ao consultar o modelo: {e}")
+                    st.error(f"Erro ao consultar o modelo: {e}. Possível instabilidade no sistema. Tente mais tarde!")
+
 
     def gerar_grafico_manual(self):
         st.subheader("📊 Gerar gráfico sob demanda")
